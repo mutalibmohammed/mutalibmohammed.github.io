@@ -1,9 +1,7 @@
-body{
-    background-color: background-image: -webkit-gradient(linear, left top, left bottom, from(pink), to(red));
-    background-image: -webkit-linear-gradient(top, pink, red);
-    background-image: -moz-linear-gradient(top, pink, red);
-    background-image: linear-gradient(to bottom, pink, red);
-    
+ body{ 
+     background-color: hotpink;
     font-family: 'Roboto Mono', monospace;
     font-size: 20px;
-}
+
+} 
+
