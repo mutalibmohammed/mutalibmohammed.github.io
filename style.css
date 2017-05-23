@@ -1,7 +1,9 @@
- body{ 
-     background-color: hotpink;
+body{
+    background-color: hotpink;
     font-family: 'Roboto Mono', monospace;
     font-size: 20px;
-
 } 
 
+p{
+     margin-top: 0;
+}
