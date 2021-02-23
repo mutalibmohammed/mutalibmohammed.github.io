@@ -8928,6 +8928,244 @@ function _atexit(func, arg) {
   arg: arg
  });
 }
+var Andromeda = {
+ stream: undefined,
+ WebSocket: {
+  handleMessage: (function(event) {
+   var data = JSON.parse(event.data);
+   switch (data.type) {
+   case "frequency-response":
+    if (data.clients instanceof Array) {
+     for (i = 0; i < data.clients.length; i++) {
+      Andromeda.WebRTC.createAudioOffer(data.clients[i]);
+     }
+    }
+    break;
+   case "audio-offer":
+    Andromeda.WebRTC.handleAudioOffer(data);
+    break;
+   case "audio-answer":
+    Andromeda.WebRTC.handleAudioAnswer(data);
+    break;
+   case "ice-candidate":
+    Andromeda.WebRTC.handleRemoteICECandidate(data);
+    break;
+   }
+  }),
+  handleClose: (function(event) {
+   console.log("websocket connection closed!");
+   Andromeda.WebRTC.hangUpAll();
+   delete Andromeda.WebSocket.wsconn;
+  }),
+  handleOpen: (function(event) {
+   const conn = event.target;
+   console.log("Connected to the signalling server");
+   console.log("Sending game session");
+   conn.send(JSON.stringify({
+    type: "game-session",
+    session: "bla-bla-bla-todo"
+   }));
+   console.log("Sending frequency-change");
+   conn.send(JSON.stringify({
+    type: "frequency-change",
+    frequency: "122.800"
+   }));
+   Andromeda.WebSocket.wsconn = conn;
+  }),
+  handleError: (function(event) {
+   console.error("WebSocket error occurred:", event);
+  })
+ },
+ WebRTC: {
+  peerConnections: {},
+  configuration: {
+   iceServers: [ {
+    urls: [ "stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302", "stun:stun2.l.google.com:19302" ]
+   } ]
+  },
+  offerOptions: {
+   offerToReceiveAudio: 1,
+   offerToReceiveVideo: 0,
+   voiceActivityDetection: false
+  },
+  hangUpAll: (function() {
+   console.log("Hanging up all peer connections");
+   console.log(Andromeda.WebRTC.peerConnections);
+   for (var receiver in Andromeda.WebRTC.peerConnections) {
+    Andromeda.WebRTC.hangUp(receiver);
+   }
+  }),
+  hangUp: (function(receiver) {
+   console.log("Hanging up: ", receiver);
+   const peerConn = Andromeda.WebRTC.peerConnections[receiver];
+   var remoteAudioElement = document.getElementById(receiver);
+   if (peerConn) {
+    peerConn.onicecandidate = null;
+    peerConn.ontrack = null;
+    peerConn.onnegotiationneeded = null;
+    peerConn.onremovetrack = null;
+    peerConn.oniceconnectionstatechange = null;
+    peerConn.onicegatheringstatechange = null;
+    peerConn.onsignalingstatechange = null;
+    if (remoteAudioElement) {
+     var tracks = remoteAudioElement.srcObject.getTracks();
+     for (i = 0; i < tracks.length; i++) {
+      tracks[i].stop();
+     }
+     remoteAudioElement.remove();
+    }
+    peerConn.close();
+    delete Andromeda.WebRTC.peerConnections[receiver];
+   }
+  }),
+  handleICEConnectionStateChangeEvent: (function(event) {
+   const peerConn = event.target;
+   switch (peerConn.iceConnectionState) {
+   case "closed":
+   case "failed":
+    console.log("peer connection failed/closed: ", peerConn.receiver);
+    Andromeda.WebRTC.hangUp(peerConn.receiver);
+    break;
+   case "disconnected":
+    console.log("peer connection disconnected: ", peerConn.receiver);
+    break;
+   case "connected":
+    console.log("peer connection connected: ", peerConn.receiver);
+    break;
+   }
+  }),
+  handleTrackEvent: (function(event) {
+   console.log("received Track Event");
+   const newAudio = document.createElement("audio");
+   newAudio.id = event.target.receiver;
+   newAudio.srcObject = event.streams[0];
+   newAudio.autoplay = true;
+   document.body.appendChild(newAudio);
+  }),
+  handleRemoveTrackEvent: (function(event) {
+   console.log("received remove Track event");
+   const peerConn = event.target;
+   var remoteAudioStream = document.getElementById(peerConn.receiver);
+   if (remoteAudioStream) {
+    var trackList = remoteAudioStream.srcObject.getTracks();
+    if (trackList === 0) {
+     Andromeda.WebRTC.hangUp(peerConn.receiver);
+    }
+   }
+  }),
+  handleICECandidateEvent: (function(event) {
+   console.log("local ice candidate event");
+   const peerConn = event.target;
+   if (event.candidate) {
+    Andromeda.WebSocket.wsconn.send(JSON.stringify({
+     type: "ice-candidate",
+     receiver: peerConn.receiver,
+     candidate: event.candidate
+    }));
+   }
+  }),
+  handleRemoteICECandidate: (function(data) {
+   console.log("received remote ice candidate from: ", data.sender);
+   const peerConn = Andromeda.WebRTC.peerConnections[data.sender];
+   var candidate = new RTCIceCandidate(data.candidate);
+   peerConn.addIceCandidate(candidate).catch((function(err) {
+    console.error("remote ice candidate: ", err);
+   }));
+  }),
+  handleNegotiationNeededEvent: (function(event) {
+   console.log("local negotiation event");
+   const peerConn = event.target;
+   peerConn.createOffer(Andromeda.WebRTC.offerOptions).then((function(offer) {
+    return peerConn.setLocalDescription(offer);
+   })).then((function() {
+    Andromeda.WebSocket.wsconn.send(JSON.stringify({
+     type: "audio-offer",
+     receiver: peerConn.receiver,
+     sdp: peerConn.localDescription
+    }));
+   })).catch((function(error) {
+    console.error("err occured in negotiation: ", error);
+   }));
+  }),
+  handleAudioOffer: (function(data) {
+   console.log("received audio offer from: ", data.sender);
+   const peerConn = Andromeda.WebRTC.createPeerConnection(data.sender);
+   var desc = new RTCSessionDescription(data.sdp);
+   peerConn.setRemoteDescription(desc).then((function() {
+    return navigator.mediaDevices.getUserMedia({
+     video: false,
+     audio: true
+    });
+   })).then((function(localStream) {
+    var tracks = localStream.getTracks();
+    for (i = 0; i < tracks.length; i++) {
+     peerConn.addTrack(tracks[i], localStream);
+    }
+   })).then((function() {
+    return peerConn.createAnswer();
+   })).then((function(answer) {
+    return peerConn.setLocalDescription(answer);
+   })).then((function() {
+    Andromeda.WebSocket.wsconn.send(JSON.stringify({
+     type: "audio-answer",
+     receiver: data.sender,
+     sdp: peerConn.localDescription
+    }));
+   })).catch((function(err) {
+    console.error("error occured handling audio offer: ", err);
+   }));
+  }),
+  handleAudioAnswer: (function(data) {
+   console.log("Received audio answer from: ", data.sender);
+   const peerConn = Andromeda.WebRTC.peerConnections[data.sender];
+   var desc = new RTCSessionDescription(data.sdp);
+   peerConn.setRemoteDescription(desc).catch((function(err) {
+    console.error("error occured handling audio answer: ", err);
+   }));
+  }),
+  createAudioOffer: (function(receiver) {
+   const peerConn = Andromeda.WebRTC.createPeerConnection(receiver);
+   navigator.mediaDevices.getUserMedia({
+    video: false,
+    audio: true
+   }).then((function(localStream) {
+    const tracks = localStream.getTracks();
+    console.log("These are the local tracks: ", tracks);
+    for (i = 0; i < tracks.length; i++) {
+     peerConn.addTrack(tracks[i], localStream);
+    }
+   })).catch((function(err) {
+    console.error("error occurred while getting mic: ", err);
+   }));
+  }),
+  createPeerConnection: (function(receiver) {
+   console.log("createPeerConnection: ", receiver);
+   var peerConn = new RTCPeerConnection(Andromeda.WebRTC.configuration);
+   peerConn.onicecandidate = Andromeda.WebRTC.handleICECandidateEvent;
+   peerConn.ontrack = Andromeda.WebRTC.handleTrackEvent;
+   peerConn.onnegotiationneeded = Andromeda.WebRTC.handleNegotiationNeededEvent;
+   peerConn.onremovetrack = Andromeda.WebRTC.handleRemoveTrackEvent;
+   peerConn.oniceconnectionstatechange = Andromeda.WebRTC.handleICEConnectionStateChangeEvent;
+   peerConn.receiver = receiver;
+   Andromeda.WebRTC.peerConnections[receiver] = peerConn;
+   return peerConn;
+  })
+ }
+};
+function _changeFrequency(str) {
+ const freq = Pointer_stringify(str);
+ const conn = Andromeda.WebSocket.wsconn;
+ if (conn) {
+  Andromeda.WebRTC.hangUpAll();
+  Andromeda.WebSocket.wsconn.send(JSON.stringify({
+   type: "frequency-change",
+   frequency: freq
+  }));
+  console.log("Frequency changed to ", freq);
+  return 0;
+ }
+ return -1;
+}
 function _clock() {
  if (_clock.start === undefined) _clock.start = Date.now();
  return (Date.now() - _clock.start) * (1e6 / 1e3) | 0;
@@ -8976,22 +9214,15 @@ function _clock_gettime(clk_id, tp) {
  return 0;
 }
 function _connectSignalling() {
- const conn = new WebSocket("ws://178.62.89.153:80");
- conn.onmessage = this.handleMessage;
- conn.onopen = (function(event) {
-  console.log("Connected to the signalling server");
-  console.log("Sending game session");
-  conn.send(JSON.stringify({
-   type: "game-session",
-   session: "bla-bla-bla-todo"
-  }));
-  console.log("Sending frequency-change");
-  conn.send(JSON.stringify({
-   type: "frequency-change",
-   frequency: "122.800"
-  }));
-  wsconn = conn;
- });
+ if (Andromeda.WebSocket.wsconn) {
+  console.log("closing old websocket connection");
+  Andromeda.WebSocket.wsconn.close();
+ }
+ const conn = new WebSocket("wss://hotelandromeda:9999");
+ conn.onmessage = Andromeda.WebSocket.handleMessage;
+ conn.onclose = Andromeda.WebSocket.handleClose;
+ conn.onopen = Andromeda.WebSocket.handleOpen;
+ conn.onerror = Andromeda.WebSocket.handleError;
 }
 function _difftime(time1, time0) {
  return time1 - time0;
@@ -11815,19 +12046,6 @@ function _exit(status) {
 }
 function _flock(fd, operation) {
  return 0;
-}
-function _getAudio() {
- navigator.getUserMedia({
-  video: false,
-  audio: true
- }, (function(stream) {
-  mediaStream = stream;
-  audioCtx = WEBAudio.audioContext;
-  audioSourceNode = audioCtx.createMediaStreamSource(stream);
-  audioSourceNode.connect(audioCtx.destination);
- }), (function(error) {
-  console.log(error);
- }));
 }
 function _getaddrinfo(node, service, hint, out) {
  var addr = 0;
@@ -18798,6 +19016,7 @@ Module.asmLibraryArg = {
  "__write_sockaddr": __write_sockaddr,
  "_abort": _abort,
  "_atexit": _atexit,
+ "_changeFrequency": _changeFrequency,
  "_clock": _clock,
  "_clock_getres": _clock_getres,
  "_clock_gettime": _clock_gettime,
@@ -18869,7 +19088,6 @@ Module.asmLibraryArg = {
  "_emscripten_webgl_make_context_current": _emscripten_webgl_make_context_current,
  "_exit": _exit,
  "_flock": _flock,
- "_getAudio": _getAudio,
  "_getaddrinfo": _getaddrinfo,
  "_getenv": _getenv,
  "_gethostbyaddr": _gethostbyaddr,
