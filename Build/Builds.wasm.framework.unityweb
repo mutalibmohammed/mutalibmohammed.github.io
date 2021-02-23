@@ -9218,7 +9218,7 @@ function _connectSignalling() {
   console.log("closing old websocket connection");
   Andromeda.WebSocket.wsconn.close();
  }
- const conn = new WebSocket("wss://hotelandromeda:9999");
+ const conn = new WebSocket("wss://hotelandromeda.me:9999");
  conn.onmessage = Andromeda.WebSocket.handleMessage;
  conn.onclose = Andromeda.WebSocket.handleClose;
  conn.onopen = Andromeda.WebSocket.handleOpen;
