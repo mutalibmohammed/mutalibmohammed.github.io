@@ -74,6 +74,9 @@
     for (const s of STATIONS) {
       const g = el("g", { class: "station", "data-id": s.id }, viewport);
 
+      // generous invisible hit area so stations are easy to tap on phones
+      el("circle", { cx: s.x, cy: s.y, r: 26, fill: "transparent" }, g);
+
       if (s.marker === "tick") {
         const [dx, dy] = s.tick;
         const n = Math.hypot(dx, dy);
@@ -95,8 +98,6 @@
       t1.textContent = s.mapName || s.name;
       const t2 = el("text", { x: bx, y: pubY, class: "pub-label", "text-anchor": lb.anchor }, g);
       t2.textContent = s.pub.mapName || s.pub.name;
-
-      g.addEventListener("click", () => { if (!picking) showStation(s, { zoom: true }); });
     }
 
     mapHost.appendChild(svg);
@@ -190,7 +191,11 @@
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     stopAnim();
     if (pointers.size === 1) {
-      gestureStart = { view: { ...view }, cx: e.clientX, cy: e.clientY, moved: false };
+      const hitStation = e.target.closest ? e.target.closest(".station") : null;
+      gestureStart = {
+        view: { ...view }, cx: e.clientX, cy: e.clientY, moved: false,
+        stationHit: hitStation ? hitStation.getAttribute("data-id") : null,
+      };
     } else if (pointers.size === 2) {
       const [a, b] = [...pointers.values()];
       gestureStart = {
@@ -228,7 +233,15 @@
     pointers.delete(e.pointerId);
     if (pointers.size === 0) gestureStart = null;
   }
-  mapWrap.addEventListener("pointerup", endPointer);
+  mapWrap.addEventListener("pointerup", (e) => {
+    // a clean tap on a station opens its card (click events are unreliable
+    // here because the wrap holds pointer capture during gestures)
+    if (gestureStart && !gestureStart.pinch && !gestureStart.moved && gestureStart.stationHit && !picking) {
+      const s = STATIONS.find((x) => x.id === gestureStart.stationHit);
+      if (s) showStation(s, { zoom: true });
+    }
+    endPointer(e);
+  });
   mapWrap.addEventListener("pointercancel", endPointer);
 
   // wheel zoom (desktop)
