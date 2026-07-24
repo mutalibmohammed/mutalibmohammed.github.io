@@ -71,8 +71,8 @@ header .spacer { flex: 1; }
   cursor: grab;
 }
 #map-wrap:active { cursor: grabbing; }
-#map, #tube-map { position: absolute; top: 0; left: 0; }
-#tube-map { transform-origin: 0 0; will-change: transform; }
+#map { position: absolute; inset: 0; }
+#tube-map { position: absolute; inset: 0; width: 100%; height: 100%; }
 
 .stn-label {
   font-family: var(--display);

@@ -92,9 +92,8 @@
 
       const lb = s.label;
       const bx = s.x + lb.dx, by = s.y + lb.dy;
-      const stnY = lb.flip ? by : by;
       const pubY = lb.flip ? by - 15 : by + 15;
-      const t1 = el("text", { x: bx, y: stnY, class: "stn-label", "text-anchor": lb.anchor }, g);
+      const t1 = el("text", { x: bx, y: by, class: "stn-label", "text-anchor": lb.anchor }, g);
       t1.textContent = s.mapName || s.name;
       const t2 = el("text", { x: bx, y: pubY, class: "pub-label", "text-anchor": lb.anchor }, g);
       t2.textContent = s.pub.mapName || s.pub.name;
@@ -104,57 +103,61 @@
     refreshVisitedStyles();
   }
 
-  /* ---------------------------------------------------------- pan / zoom */
-  const view = { x: 0, y: 0, k: 1 };       // translate (screen px) + scale
-  let baseScale = 1;                        // viewBox → screen at k=1
+  /* ---------------------------------------------------------- pan / zoom
+     Zoom works by moving the SVG viewBox, not by CSS-transforming the
+     element — the browser re-renders the vectors every frame, so lines
+     and labels stay crisp at any zoom level. */
+  const vb = { x: MAP_BOUNDS.x, y: MAP_BOUNDS.y, w: MAP_BOUNDS.width, h: MAP_BOUNDS.height };
+  let cw = 1, ch = 1;                    // container size in px
+  let fitW = MAP_BOUNDS.width;           // viewBox width that fits the whole map
+  const K_MIN = 0.8, K_MAX = 6;
   let anim = null;
 
-  function containerSize() {
-    return { w: mapWrap.clientWidth, h: mapWrap.clientHeight };
-  }
   function computeBase() {
-    const { w, h } = containerSize();
-    baseScale = Math.min(w / MAP_BOUNDS.width, h / MAP_BOUNDS.height);
-    svg.setAttribute("width", MAP_BOUNDS.width * baseScale);
-    svg.setAttribute("height", MAP_BOUNDS.height * baseScale);
+    cw = mapWrap.clientWidth || 1;
+    ch = mapWrap.clientHeight || 1;
+    fitW = Math.max(MAP_BOUNDS.width, MAP_BOUNDS.height * cw / ch);
   }
+  const zoomK = () => fitW / vb.w;
+  const clampW = (w) => Math.max(fitW / K_MAX, Math.min(fitW / K_MIN, w));
+
   function apply() {
-    svg.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.k})`;
+    svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
   }
-  function clampView() {
-    // the map must always cover the centre of the screen
-    const { w, h } = containerSize();
-    const mw = MAP_BOUNDS.width * baseScale * view.k;
-    const mh = MAP_BOUNDS.height * baseScale * view.k;
-    view.x = Math.max(w / 2 - mw, Math.min(w / 2, view.x));
-    view.y = Math.max(h / 2 - mh, Math.min(h / 2, view.y));
-  }
-  // zoom level that shows roughly `units` map-units across the screen width
-  function kForUnits(units) {
-    const { w } = containerSize();
-    return Math.max(1, Math.min(6, w / (units * baseScale)));
-  }
-  function setView(x, y, k) {
-    if (!isFinite(x) || !isFinite(y) || !isFinite(k)) return;
-    view.x = x; view.y = y; view.k = Math.max(0.8, Math.min(6, k));
-    clampView();
+  function setVB(x, y, w) {
+    if (!isFinite(x) || !isFinite(y) || !isFinite(w) || w <= 0) return;
+    const wc = clampW(w);
+    const hc = wc * ch / cw;
+    // keep the intended centre, then clamp it so the screen centre
+    // always stays over the map
+    let cx = x + w / 2, cy = y + (w * ch / cw) / 2;
+    cx = Math.max(MAP_BOUNDS.x, Math.min(MAP_BOUNDS.x + MAP_BOUNDS.width, cx));
+    cy = Math.max(MAP_BOUNDS.y, Math.min(MAP_BOUNDS.y + MAP_BOUNDS.height, cy));
+    vb.w = wc; vb.h = hc;
+    vb.x = cx - wc / 2; vb.y = cy - hc / 2;
     apply();
+  }
+  function zoomAt(sx, sy, factor) {
+    const w2 = clampW(vb.w / factor);
+    const ax = vb.x + (sx / cw) * vb.w;
+    const ay = vb.y + (sy / ch) * vb.h;
+    setVB(ax - (sx / cw) * w2, ay - (sy / ch) * (w2 * ch / cw), w2);
   }
   function stopAnim() { if (anim) { cancelAnimationFrame(anim); anim = null; } }
   function animateTo(target, ms) {
     stopAnim();
-    if (reducedMotion || ms === 0) { setView(target.x, target.y, target.k); return Promise.resolve(); }
-    const from = { ...view };
+    if (reducedMotion || ms === 0) { setVB(target.x, target.y, target.w); return Promise.resolve(); }
+    const from = { x: vb.x, y: vb.y, w: vb.w };
     const t0 = performance.now();
     const ease = (t) => 1 - Math.pow(1 - t, 3);
     return new Promise((resolve) => {
       const step = (now) => {
         const t = Math.min(1, (now - t0) / ms);
         const e = ease(t);
-        setView(
+        setVB(
           from.x + (target.x - from.x) * e,
           from.y + (target.y - from.y) * e,
-          from.k + (target.k - from.k) * e
+          from.w + (target.w - from.w) * e
         );
         if (t < 1) anim = requestAnimationFrame(step);
         else { anim = null; resolve(); }
@@ -163,17 +166,21 @@
     });
   }
   function fitTarget() {
-    const { w, h } = containerSize();
-    return { x: (w - MAP_BOUNDS.width * baseScale) / 2, y: (h - MAP_BOUNDS.height * baseScale) / 2, k: 1 };
+    const w = fitW, h = w * ch / cw;
+    return {
+      x: MAP_BOUNDS.x + MAP_BOUNDS.width / 2 - w / 2,
+      y: MAP_BOUNDS.y + MAP_BOUNDS.height / 2 - h / 2,
+      w,
+    };
   }
   function centerOn(mx, my, k, yBias) {
-    const { w, h } = containerSize();
-    const bias = yBias || 0.5; // 0.5 = center; smaller = station sits higher
-    return {
-      x: w / 2 - (mx - MAP_BOUNDS.x) * baseScale * k,
-      y: h * bias - (my - MAP_BOUNDS.y) * baseScale * k,
-      k,
-    };
+    const w = fitW / Math.max(K_MIN, Math.min(K_MAX, k));
+    const h = w * ch / cw;
+    return { x: mx - w / 2, y: my - h * (yBias || 0.5), w };
+  }
+  // zoom level that shows roughly `units` map-units across the screen width
+  function kForUnits(units) {
+    return Math.max(1, Math.min(K_MAX, fitW / units));
   }
 
   // pointer gestures: drag pan + pinch zoom
@@ -187,13 +194,13 @@
     if (pointers.size === 1) {
       const hitStation = e.target.closest ? e.target.closest(".station") : null;
       gestureStart = {
-        view: { ...view }, cx: e.clientX, cy: e.clientY, moved: false,
+        vb: { ...vb }, cx: e.clientX, cy: e.clientY, moved: false,
         stationHit: hitStation ? hitStation.getAttribute("data-id") : null,
       };
     } else if (pointers.size === 2) {
       const [a, b] = [...pointers.values()];
       gestureStart = {
-        view: { ...view },
+        vb: { ...vb },
         dist: Math.hypot(a.x - b.x, a.y - b.y),
         mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
         pinch: true, moved: true,
@@ -208,19 +215,25 @@
       const dist = Math.hypot(a.x - b.x, a.y - b.y);
       const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
       const rect = mapWrap.getBoundingClientRect();
-      const scale = dist / gestureStart.dist;
-      const k = Math.max(0.8, Math.min(6, gestureStart.view.k * scale));
-      const eff = k / gestureStart.view.k;
-      const sx = gestureStart.mid.x - rect.left, sy = gestureStart.mid.y - rect.top;
-      setView(
-        sx - (sx - gestureStart.view.x) * eff + (mid.x - gestureStart.mid.x),
-        sy - (sy - gestureStart.view.y) * eff + (mid.y - gestureStart.mid.y),
-        k
+      const s0 = gestureStart;
+      const w2 = clampW(s0.vb.w / (dist / s0.dist));
+      // the map point that started under the pinch centre follows the
+      // pinch centre as it moves
+      const ax = s0.vb.x + ((s0.mid.x - rect.left) / cw) * s0.vb.w;
+      const ay = s0.vb.y + ((s0.mid.y - rect.top) / ch) * s0.vb.h;
+      setVB(
+        ax - ((mid.x - rect.left) / cw) * w2,
+        ay - ((mid.y - rect.top) / ch) * (w2 * ch / cw),
+        w2
       );
     } else if (pointers.size === 1) {
       const dx = e.clientX - gestureStart.cx, dy = e.clientY - gestureStart.cy;
       if (Math.abs(dx) + Math.abs(dy) > 6) gestureStart.moved = true;
-      setView(gestureStart.view.x + dx, gestureStart.view.y + dy, gestureStart.view.k);
+      setVB(
+        gestureStart.vb.x - dx * gestureStart.vb.w / cw,
+        gestureStart.vb.y - dy * gestureStart.vb.h / ch,
+        gestureStart.vb.w
+      );
     }
   });
   function endPointer(e) {
@@ -230,7 +243,7 @@
     } else if (pointers.size === 1) {
       // pinch ended with one finger still down: hand over to a fresh drag
       const rest = [...pointers.values()][0];
-      gestureStart = { view: { ...view }, cx: rest.x, cy: rest.y, moved: true, stationHit: null };
+      gestureStart = { vb: { ...vb }, cx: rest.x, cy: rest.y, moved: true, stationHit: null };
     }
   }
   let lastTapOnStation = false;
@@ -255,10 +268,7 @@
   mapWrap.addEventListener("wheel", (e) => {
     e.preventDefault();
     const rect = mapWrap.getBoundingClientRect();
-    const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
-    const k = Math.max(0.8, Math.min(6, view.k * Math.exp(-e.deltaY * 0.0015)));
-    const eff = k / view.k;
-    setView(sx - (sx - view.x) * eff, sy - (sy - view.y) * eff, k);
+    zoomAt(e.clientX - rect.left, e.clientY - rect.top, Math.exp(-e.deltaY * 0.0015));
   }, { passive: false });
 
   // double-tap / double-click: toggle fit ↔ 2.2×
@@ -271,10 +281,12 @@
     if (now - lastTap < 320) {
       const rect = mapWrap.getBoundingClientRect();
       const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
-      if (view.k > 1.4) animateTo(fitTarget(), 420);
+      if (zoomK() > 1.4) animateTo(fitTarget(), 420);
       else {
-        const k = 2.2, eff = k / view.k;
-        animateTo({ x: sx - (sx - view.x) * eff, y: sy - (sy - view.y) * eff, k }, 420);
+        const w2 = clampW(fitW / 2.2);
+        const ax = vb.x + (sx / cw) * vb.w;
+        const ay = vb.y + (sy / ch) * vb.h;
+        animateTo({ x: ax - (sx / cw) * w2, y: ay - (sy / ch) * (w2 * ch / cw), w: w2 }, 420);
       }
       lastTap = 0;
     } else lastTap = now;
@@ -286,12 +298,11 @@
   // zoom controls
   document.querySelectorAll(".map-controls button").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const { w, h } = containerSize();
-      const sx = w / 2, sy = h / 2;
       if (btn.dataset.zoom === "fit") { animateTo(fitTarget(), 380); return; }
-      const k = Math.max(0.8, Math.min(6, view.k * (btn.dataset.zoom === "in" ? 1.45 : 1 / 1.45)));
-      const eff = k / view.k;
-      animateTo({ x: sx - (sx - view.x) * eff, y: sy - (sy - view.y) * eff, k }, 260);
+      const factor = btn.dataset.zoom === "in" ? 1.45 : 1 / 1.45;
+      const w2 = clampW(vb.w / factor);
+      const cx = vb.x + vb.w / 2, cy = vb.y + vb.h / 2;
+      animateTo({ x: cx - w2 / 2, y: cy - (w2 * ch / cw) / 2, w: w2 }, 260);
     });
   });
 
@@ -352,7 +363,7 @@
     card.hidden = false;
     requestAnimationFrame(() => card.classList.add("open"));
     if (opts && opts.zoom) {
-      animateTo(centerOn(s.x, s.y, Math.max(view.k, kForUnits(520)), 0.34), 650);
+      animateTo(centerOn(s.x, s.y, Math.max(zoomK(), kForUnits(520)), 0.34), 650);
     }
     refreshVisitedStyles();
   }
@@ -428,16 +439,17 @@
   computeBase();
   // opening view: gently zoomed on the heart of the map
   const opening = centerOn(760, 440, kForUnits(640), 0.5);
-  setView(opening.x, opening.y, opening.k);
+  setVB(opening.x, opening.y, opening.w);
 
   window.addEventListener("resize", () => {
-    const c = current;
+    const keepW = vb.w, c = current;
+    const centre = { x: vb.x + vb.w / 2, y: vb.y + vb.h / 2 };
     computeBase();
     if (c) {
-      const t = centerOn(c.x, c.y, view.k, 0.34);
-      setView(t.x, t.y, t.k);
+      const t = centerOn(c.x, c.y, zoomK(), 0.34);
+      setVB(t.x, t.y, t.w);
     } else {
-      setView(view.x, view.y, view.k);
+      setVB(centre.x - keepW / 2, centre.y - (keepW * ch / cw) / 2, keepW);
     }
   });
 })();
