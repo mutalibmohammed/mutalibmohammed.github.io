@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Zone 1 Pub Crawl — London</title>
+  <meta name="description" content="One button, one map, one pint. A TfL-style schematic of Zone 1 with the best-reviewed pub at every station — tap to pick your next stop.">
+  <meta name="theme-color" content="#113B92">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='38' fill='none' stroke='%23C77E1F' stroke-width='16'/%3E%3Crect x='2' y='40' width='96' height='20' rx='3' fill='%23113B92'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="bar">
+      <div class="badge" aria-hidden="true"></div>
+      <div class="title">
+        <b>PUB CRAWL</b>
+        <small>ZONE 1 · LONDON</small>
+      </div>
+      <div class="spacer"></div>
+      <button id="reset" hidden>reset</button>
+      <span id="counter" aria-label="pubs visited">0 / 37</span>
+    </header>
+
+    <main id="map-wrap">
+      <div id="map" aria-hidden="false"></div>
+      <div class="hint" id="hint">pinch to zoom · drag to explore</div>
+      <div class="map-controls" aria-label="map zoom controls">
+        <button data-zoom="in" aria-label="zoom in">＋</button>
+        <button data-zoom="out" aria-label="zoom out">－</button>
+        <button data-zoom="fit" aria-label="fit whole map" style="font-size:15px">⛶</button>
+      </div>
+
+      <section id="card" hidden aria-live="polite">
+        <div class="grab" aria-hidden="true"></div>
+        <button id="card-close" aria-label="close">✕</button>
+        <div id="card-body"></div>
+      </section>
+
+      <div id="toast" role="status"></div>
+    </main>
+
+    <footer class="bar">
+      <button id="pick"><span>PICK A PUB</span></button>
+      <p class="small-print">UNOFFICIAL FAN PROJECT · NOT AFFILIATED WITH TFL · DRINK RESPONSIBLY</p>
+    </footer>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+  <script>
+    setTimeout(() => document.getElementById("hint").classList.add("gone"), 4500);
+  </script>
+</body>
+</html>
