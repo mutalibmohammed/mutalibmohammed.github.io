@@ -91,6 +91,7 @@ header .spacer { flex: 1; }
 }
 .river-label { font-family: var(--body); font-style: italic; font-size: 13px; fill: #5E93B8; letter-spacing: .12em; }
 
+#tube-map text { user-select: none; -webkit-user-select: none; }
 .station { transition: opacity .3s; cursor: pointer; }
 .station.visited { opacity: .35; }
 
@@ -203,6 +204,7 @@ footer .small-print {
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
 
 /* ---------------- misc ---------------- */
+button, .maps-btn { touch-action: manipulation; }
 button:focus-visible, a:focus-visible {
   outline: 3px solid var(--amber); outline-offset: 2px;
 }
