@@ -34,9 +34,10 @@ published as the "Zone 1 Pub Crawl — Design Sketch" artifact from the Claude s
 
 Drawn from scratch in SVG following Beck's rules — horizontals, verticals, 45° diagonals:
 
-- **Lines drawn (8):** Bakerloo, Central, Circle, District, Jubilee, Northern (both Zone 1
-  branches), Piccadilly, Victoria. Elizabeth line / Overground / DLR are not drawn (they'd double
-  every corridor) but appear as coloured dots in the detail card.
+- **Lines drawn (9):** Bakerloo, Central, Circle, District, Jubilee, Northern (both Zone 1
+  branches), Piccadilly, Victoria, and the Elizabeth line in its double-stripe rail style —
+  weaving under Oxford Circus and Holborn (which it doesn't serve) exactly as on the real map.
+  Overground / DLR are not drawn but appear as coloured dots in the detail card.
 - **Markers:** line-coloured ticks for single-line stops; white/black interchange circles where 2+
   drawn lines meet; Bank–Monument drawn as the classic linked pair.
 - **Labels:** station name in TfL blue, pub name beneath in amber italic.

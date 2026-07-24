@@ -20,8 +20,24 @@ const LINE_META = {
   wc:           { name: "W&C",            color: "#95CDBA", darkText: true },
 };
 
-/* Drawn line geometry. Multiple polylines may share one line id. */
+/* Drawn line geometry. Multiple polylines may share one line id.
+   An entry's `color` overrides the line colour (used for the Elizabeth
+   line's white core, giving the classic double-stripe rail style). */
 const MAP_LINES = [
+  // Elizabeth line — drawn first so the tube lines cross over it.
+  // True Zone 1 alignment: serves Paddington, Bond St, Tottenham Court Rd,
+  // Farringdon and Liverpool St; dips under Oxford Circus and Holborn,
+  // which it does not serve.
+  { id: "elizabeth", width: 8, points: [
+    [210,250],[400,440],[480,440],[496,456],[564,456],[580,440],[760,440],
+    [776,456],[824,456],[840,440],[905,440],[985,360],[985,300],[1075,300],
+    [1224,449]
+  ]},
+  { id: "elizabeth", color: "#ffffff", width: 3, points: [
+    [210,250],[400,440],[480,440],[496,456],[564,456],[580,440],[760,440],
+    [776,456],[824,456],[840,440],[905,440],[985,360],[985,300],[1075,300],
+    [1224,449]
+  ]},
   // Circle line — the Zone 1 "bottle" loop
   { id: "circle", width: 8, points: [
     [210,250],[265,195],[880,195],[1130,445],[1355,445],[1380,470],[1380,530],
@@ -134,15 +150,15 @@ const STATIONS = [
       address: "26 Wenlock Rd, N1 7TA",
       desc: "Beloved 1836 backstreet ale house the regulars saved from developers. Worth the walk." } },
 
-  { id: "farringdon", name: "Farringdon", x: 985, y: 300, marker: "tick", tick: [-1, 1],
-    label: { anchor: "end", dx: -14, dy: 4 },
+  { id: "farringdon", name: "Farringdon", x: 985, y: 300, marker: "int",
+    label: { anchor: "end", dx: -16, dy: 26 },
     lines: ["circle", "hc", "metropolitan", "elizabeth"],
     pub: { name: "The Jerusalem Tavern", rating: 4.6, drink: "St Peter's Best Bitter from the cask", walk: 3,
       address: "55 Britton St, EC1M 5UQ",
       desc: "Tiny, candle-dim Georgian shopfront pouring St Peter's Brewery ales. Get there early." } },
 
   { id: "barbican", name: "Barbican", x: 1055, y: 370, marker: "tick", tick: [-1, 1],
-    label: { anchor: "end", dx: -14, dy: 4 },
+    label: { anchor: "end", dx: -44, dy: 4 },
     lines: ["circle", "hc", "metropolitan"],
     pub: { name: "Hand & Shears", rating: 4.4, drink: "Adnams Southwold Bitter", walk: 3,
       address: "1 Middle St, EC1A 7JA",
@@ -191,14 +207,14 @@ const STATIONS = [
       desc: "Rebuilt 1668, reputedly with ships' timbers — and drunk in by Wren's cathedral crews." } },
 
   { id: "chancery", name: "Chancery Lane", x: 890, y: 430, marker: "tick", tick: [0, -1],
-    label: { anchor: "middle", dx: 12, dy: -35 },
+    label: { anchor: "middle", dx: -16, dy: -35 },
     lines: ["central"],
     pub: { name: "Ye Olde Mitre", rating: 4.6, drink: "The guest cask — the board changes weekly", walk: 4,
       address: "1 Ely Ct, EC1N 6SJ",
       desc: "A 1546 tavern hidden down Ely Court's alley — London's best game of find-the-pub." } },
 
   { id: "holborn", name: "Holborn", x: 800, y: 430, marker: "int",
-    label: { anchor: "start", dx: 12, dy: 26 },
+    label: { anchor: "start", dx: 44, dy: 28 },
     lines: ["central", "piccadilly"],
     pub: { name: "Princess Louise", rating: 4.4, drink: "Sam Smith's Old Brewery Bitter (famously cheap)", walk: 2,
       address: "208 High Holborn, WC1V 7EP",
@@ -226,14 +242,14 @@ const STATIONS = [
       desc: "The last pub left on Oxford Street — 1790 licence, gorgeous painted ceiling at the back." } },
 
   { id: "oxfordcircus", name: "Oxford Circus", x: 560, y: 430, marker: "int",
-    label: { anchor: "start", dx: 12, dy: 20 },
+    label: { anchor: "middle", dx: -30, dy: -35 },
     lines: ["bakerloo", "central", "victoria"],
     pub: { name: "The Argyll Arms", mapName: "Argyll Arms", rating: 4.4, drink: "Timothy Taylor Landlord", walk: 2,
       address: "18 Argyll St, W1F 7TP",
       desc: "1868 mahogany-and-etched-glass snugs two steps from the Circus — a Victorian miracle of survival." } },
 
   { id: "bondst", name: "Bond Street", x: 480, y: 430, marker: "int",
-    label: { anchor: "end", dx: -14, dy: 24 },
+    label: { anchor: "end", dx: -14, dy: 30 },
     lines: ["central", "jubilee", "elizabeth"],
     pub: { name: "The Guinea", rating: 4.5, drink: "A pint of Young's while the grill does its work", walk: 4,
       address: "30 Bruton Pl, W1J 6NL",

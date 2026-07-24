@@ -52,7 +52,8 @@
     // Lines
     for (const line of MAP_LINES) {
       el("polyline", {
-        points: pts(line.points), fill: "none", stroke: LINE_META[line.id].color,
+        points: pts(line.points), fill: "none",
+        stroke: line.color || LINE_META[line.id].color,
         "stroke-width": line.width, "stroke-linejoin": "round", "stroke-linecap": "round",
       }, viewport);
     }
@@ -92,11 +93,20 @@
 
       const lb = s.label;
       const bx = s.x + lb.dx, by = s.y + lb.dy;
-      const pubY = lb.flip ? by - 15 : by + 15;
-      const t1 = el("text", { x: bx, y: by, class: "stn-label", "text-anchor": lb.anchor }, g);
-      t1.textContent = s.mapName || s.name;
-      const t2 = el("text", { x: bx, y: pubY, class: "pub-label", "text-anchor": lb.anchor }, g);
-      t2.textContent = s.pub.mapName || s.pub.name;
+      if (lb.inline) {
+        // single-row label for tight slots: "Station · Pub"
+        const t = el("text", { x: bx, y: by, "text-anchor": "start" }, g);
+        const ts1 = el("tspan", { class: "stn-label" }, t);
+        ts1.textContent = s.mapName || s.name;
+        const ts2 = el("tspan", { class: "pub-label", dx: 10 }, t);
+        ts2.textContent = s.pub.mapName || s.pub.name;
+      } else {
+        const pubY = lb.flip ? by - 15 : by + 15;
+        const t1 = el("text", { x: bx, y: by, class: "stn-label", "text-anchor": lb.anchor }, g);
+        t1.textContent = s.mapName || s.name;
+        const t2 = el("text", { x: bx, y: pubY, class: "pub-label", "text-anchor": lb.anchor }, g);
+        t2.textContent = s.pub.mapName || s.pub.name;
+      }
     }
 
     mapHost.appendChild(svg);
