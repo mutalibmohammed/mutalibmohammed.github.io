@@ -101,7 +101,8 @@ Ratings are indicative snapshots, not live; the list is one edit away in `data.j
 
 ## Build
 
-- Static, dependency-free HTML/CSS/JS at **`/pubcrawl/`** on GitHub Pages (homepage untouched).
+- Static, dependency-free HTML/CSS/JS at the **site root** on GitHub Pages (the previous
+  front page lives on at `/valentine/`).
 - Map generated at runtime from `data.js` (single source of truth for map + picker + cards).
 - Mobile-first: full-height map, thumb-reach button, pinch-zoom / drag pan / double-tap re-fit.
 - Accessibility: `aria-live` result card, visible focus rings, reduced-motion respected,

@@ -121,13 +121,6 @@
   function apply() {
     svg.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.k})`;
   }
-  // map coords → current screen offset within container
-  function mapToScreen(mx, my) {
-    return {
-      x: (mx - MAP_BOUNDS.x) * baseScale * view.k + view.x,
-      y: (my - MAP_BOUNDS.y) * baseScale * view.k + view.y,
-    };
-  }
   function clampView() {
     // the map must always cover the centre of the screen
     const { w, h } = containerSize();
@@ -142,6 +135,7 @@
     return Math.max(1, Math.min(6, w / (units * baseScale)));
   }
   function setView(x, y, k) {
+    if (!isFinite(x) || !isFinite(y) || !isFinite(k)) return;
     view.x = x; view.y = y; view.k = Math.max(0.8, Math.min(6, k));
     clampView();
     apply();
@@ -187,7 +181,7 @@
   let gestureStart = null;
   mapWrap.addEventListener("pointerdown", (e) => {
     if (e.target.closest("#card") || e.target.closest(".map-controls")) return;
-    mapWrap.setPointerCapture(e.pointerId);
+    try { mapWrap.setPointerCapture(e.pointerId); } catch {}
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     stopAnim();
     if (pointers.size === 1) {
@@ -231,14 +225,27 @@
   });
   function endPointer(e) {
     pointers.delete(e.pointerId);
-    if (pointers.size === 0) gestureStart = null;
+    if (pointers.size === 0) {
+      gestureStart = null;
+    } else if (pointers.size === 1) {
+      // pinch ended with one finger still down: hand over to a fresh drag
+      const rest = [...pointers.values()][0];
+      gestureStart = { view: { ...view }, cx: rest.x, cy: rest.y, moved: true, stationHit: null };
+    }
   }
+  let lastTapOnStation = false;
   mapWrap.addEventListener("pointerup", (e) => {
-    // a clean tap on a station opens its card (click events are unreliable
-    // here because the wrap holds pointer capture during gestures)
-    if (gestureStart && !gestureStart.pinch && !gestureStart.moved && gestureStart.stationHit && !picking) {
-      const s = STATIONS.find((x) => x.id === gestureStart.stationHit);
-      if (s) showStation(s, { zoom: true });
+    // taps are resolved here rather than via click events, which are
+    // unreliable while the wrap holds pointer capture during gestures
+    const cleanTap = gestureStart && !gestureStart.pinch && !gestureStart.moved;
+    lastTapOnStation = !!(cleanTap && gestureStart.stationHit);
+    if (cleanTap && !picking) {
+      if (gestureStart.stationHit) {
+        const s = STATIONS.find((x) => x.id === gestureStart.stationHit);
+        if (s) showStation(s, { zoom: true });
+      } else if (!card.hidden) {
+        hideCard(); // tapping empty map dismisses the card; panning keeps it
+      }
     }
     endPointer(e);
   });
@@ -259,6 +266,7 @@
   mapWrap.addEventListener("pointerup", (e) => {
     if (e.target.closest("#card") || e.target.closest(".map-controls")) return;
     if (gestureStartMovedRecently) return;
+    if (lastTapOnStation) { lastTap = 0; return; } // station taps open cards, not zoom
     const now = Date.now();
     if (now - lastTap < 320) {
       const rect = mapWrap.getBoundingClientRect();
@@ -349,14 +357,16 @@
   }
   function hideCard() {
     card.classList.remove("open");
-    ringAt(STATIONS[0], false);
+    const r = ringEl();
+    r.setAttribute("opacity", 0);
+    r.classList.remove("pulsing");
     current = null;
     setTimeout(() => { if (!card.classList.contains("open")) card.hidden = true; }, 250);
     refreshVisitedStyles();
   }
   cardClose.addEventListener("click", hideCard);
-  mapWrap.addEventListener("pointerdown", (e) => {
-    if (!card.hidden && !e.target.closest("#card") && !e.target.closest(".map-controls")) hideCard();
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !card.hidden) hideCard();
   });
 
   /* ---------------------------------------------------------- toast */

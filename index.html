@@ -1,332 +1,64 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>a special question for you 💕</title>
-        <link
-            rel="icon"
-            href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎀</text></svg>"
-        />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap"
-            rel="stylesheet"
-        />
-        <style>
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-                text-transform: lowercase;
-            }
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Zone 1 Pub Crawl — London</title>
+  <meta name="description" content="One button, one map, one pint. A TfL-style schematic of Zone 1 with the best-reviewed pub at every station — tap to pick your next stop.">
+  <meta name="theme-color" content="#113B92">
+  <meta property="og:title" content="Zone 1 Pub Crawl — London">
+  <meta property="og:description" content="One button, one map, one pint. A TfL-style map of Zone 1 with the best-reviewed pub at every station.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='38' fill='none' stroke='%23C77E1F' stroke-width='16'/%3E%3Crect x='2' y='40' width='96' height='20' rx='3' fill='%23113B92'/%3E%3C/svg%3E">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Pub Crawl">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <noscript><p style="padding:20px;font-family:sans-serif">The pub crawl picker needs JavaScript to draw the map — please enable it.</p></noscript>
+  <div class="app">
+    <header class="bar">
+      <div class="badge" aria-hidden="true"></div>
+      <div class="title">
+        <b>PUB CRAWL</b>
+        <small>ZONE 1 · LONDON</small>
+      </div>
+      <div class="spacer"></div>
+      <button id="reset" hidden>reset</button>
+      <span id="counter" aria-label="pubs visited">0 / 37</span>
+    </header>
 
-            body {
-                background: linear-gradient(
-                    135deg,
-                    #ffe4ec 0%,
-                    #ffb6c1 50%,
-                    #ffc0cb 100%
-                );
-                font-family: "Quicksand", sans-serif;
-                min-height: 100vh;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                padding: 20px;
-            }
+    <main id="map-wrap">
+      <div id="map" aria-hidden="false"></div>
+      <div class="hint" id="hint">pinch to zoom · drag to explore</div>
+      <div class="map-controls" aria-label="map zoom controls">
+        <button data-zoom="in" aria-label="zoom in">＋</button>
+        <button data-zoom="out" aria-label="zoom out">－</button>
+        <button data-zoom="fit" aria-label="fit whole map" style="font-size:15px">⛶</button>
+      </div>
 
-            .container {
-                text-align: center;
-                background: rgba(255, 255, 255, 0.85);
-                padding: 40px 50px;
-                border-radius: 30px;
-                box-shadow: 0 10px 40px rgba(255, 105, 135, 0.3);
-                width: 400px;
-                min-height: 350px;
-                overflow: hidden;
-            }
+      <section id="card" hidden aria-live="polite">
+        <div class="grab" aria-hidden="true"></div>
+        <button id="card-close" aria-label="close">✕</button>
+        <div id="card-body"></div>
+      </section>
 
-            .bowtie {
-                font-size: 80px;
-                margin-bottom: 20px;
-                display: inline-block;
-                animation: bounce 2s ease-in-out infinite;
-                filter: hue-rotate(320deg) saturate(1.5);
-            }
+      <div id="toast" role="status"></div>
+    </main>
 
-            .reaction-img {
-                width: 120px;
-                height: 120px;
-                object-fit: cover;
-                border-radius: 15px;
-                margin-bottom: 20px;
-                display: none;
-            }
+    <footer class="bar">
+      <button id="pick"><span>PICK A PUB</span></button>
+      <p class="small-print">UNOFFICIAL FAN PROJECT · NOT AFFILIATED WITH TFL · DRINK RESPONSIBLY</p>
+    </footer>
+  </div>
 
-            .reaction-img.visible {
-                display: block;
-                margin-left: auto;
-                margin-right: auto;
-            }
-
-            @keyframes bounce {
-                0%,
-                100% {
-                    transform: translateY(0);
-                }
-                50% {
-                    transform: translateY(-10px);
-                }
-            }
-
-            .question {
-                font-size: 24px;
-                color: #d63384;
-                font-weight: 600;
-                margin-bottom: 30px;
-                line-height: 1.4;
-                min-height: 70px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            .buttons {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                gap: 20px;
-                flex-wrap: wrap;
-                min-height: 60px;
-            }
-
-            .button-wrapper {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                width: 120px;
-                height: 60px;
-            }
-
-            button {
-                font-family: "Quicksand", sans-serif;
-                font-weight: 600;
-                border: none;
-                border-radius: 50px;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                text-transform: lowercase;
-            }
-
-            #yes-btn {
-                background: linear-gradient(135deg, #ff6b9d 0%, #ff85a2 100%);
-                color: white;
-                padding: 15px 40px;
-                font-size: 18px;
-                box-shadow: 0 5px 20px rgba(255, 107, 157, 0.4);
-            }
-
-            #yes-btn:hover {
-                box-shadow: 0 8px 30px rgba(255, 107, 157, 0.5);
-            }
-
-            #no-btn {
-                background: #f0f0f0;
-                color: #888;
-                padding: 12px 30px;
-                font-size: 16px;
-            }
-
-            #no-btn:hover {
-                background: #e0e0e0;
-            }
-
-            .success-message {
-                display: none;
-                animation: fadeIn 0.5s ease;
-            }
-
-            .success-message h2 {
-                font-size: 32px;
-                color: #d63384;
-                margin-bottom: 15px;
-            }
-
-            .success-message p {
-                font-size: 20px;
-                color: #e75480;
-            }
-
-            .hearts {
-                font-size: 40px;
-                margin-top: 20px;
-                animation: pulse 1s ease-in-out infinite;
-            }
-
-            @keyframes fadeIn {
-                from {
-                    opacity: 0;
-                    transform: scale(0.8);
-                }
-                to {
-                    opacity: 1;
-                    transform: scale(1);
-                }
-            }
-
-            @keyframes pulse {
-                0%,
-                100% {
-                    transform: scale(1);
-                }
-                50% {
-                    transform: scale(1.1);
-                }
-            }
-
-            @media (max-width: 480px) {
-                .container {
-                    padding: 30px 25px;
-                    width: 90%;
-                    min-height: 320px;
-                }
-
-                .question {
-                    font-size: 20px;
-                    min-height: 60px;
-                }
-
-                .bowtie {
-                    font-size: 60px;
-                }
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="bowtie">🎀</div>
-            <img id="reaction-img" class="reaction-img" src="" alt="reaction" />
-
-            <div id="question-section">
-                <h1 class="question" id="question-text">
-                    will you be my valentine?
-                </h1>
-                <div class="buttons">
-                    <div class="button-wrapper">
-                        <button id="yes-btn">yes!</button>
-                    </div>
-                    <div class="button-wrapper">
-                        <button id="no-btn">no</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="success-message" id="success-section">
-                <h2>yay! 💕</h2>
-                <p>i knew you'd say yes!</p>
-                <p>you've made me the happiest person ever 🥰</p>
-                <div class="hearts">💖💗💖</div>
-            </div>
-        </div>
-
-        <script>
-            const noImages = [
-                "images/no-1.jpg",
-                "images/no-2.PNG",
-                "images/no-3.JPG",
-                "images/no-4.jpg",
-                "images/no-5.jpg",
-            ];
-            const yesImage = "images/yes.JPG";
-            const reactionImg = document.getElementById("reaction-img");
-
-            // Fisher-Yates shuffle for better randomization
-            function shuffleArray(array) {
-                const shuffled = [...array];
-                for (let i = shuffled.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-                }
-                return shuffled;
-            }
-
-            let shuffledNoImages = shuffleArray(noImages);
-            let noImageIndex = 0;
-
-            const sweetMessages = [
-                "are you sure? 🥺",
-                "pretty please? 💕",
-                "i'll be really sweet to you...",
-                "think about it one more time? 🌸",
-                "but i really really like you...",
-                "you're breaking my heart 💔",
-                "i promise to make you happy!",
-                "please give me a chance? 🙏",
-                "i'll give you all my love...",
-                "what if i said pretty pretty please?",
-                "i won't give up on us! 💪",
-                "my heart only beats for you...",
-                "please? with a cherry on top? 🍒",
-                "i'll love you forever and ever...",
-                "okay fine... just one more try? 🥹",
-            ];
-
-            let messageIndex = 0;
-            let yesSize = 18;
-            const yesBtn = document.getElementById("yes-btn");
-            const noBtn = document.getElementById("no-btn");
-            const questionText = document.getElementById("question-text");
-            const questionSection = document.getElementById("question-section");
-            const successSection = document.getElementById("success-section");
-
-            let yesScale = 1;
-            let noScale = 1;
-
-            noBtn.addEventListener("click", () => {
-                if (messageIndex < sweetMessages.length) {
-                    questionText.textContent = sweetMessages[messageIndex];
-                    messageIndex++;
-
-                    // show next image from shuffled array
-                    reactionImg.src = shuffledNoImages[noImageIndex];
-                    reactionImg.classList.add("visible");
-                    noImageIndex++;
-
-                    // reshuffle when we've shown all images
-                    if (noImageIndex >= shuffledNoImages.length) {
-                        shuffledNoImages = shuffleArray(noImages);
-                        noImageIndex = 0;
-                    }
-
-                    // make the yes button grow (max 1.8x)
-                    yesScale = Math.min(1.8, yesScale + 0.1);
-                    yesBtn.style.transform = `scale(${yesScale})`;
-
-                    // make no button shrink
-                    noScale = Math.max(0.5, noScale - 0.05);
-                    noBtn.style.transform = `scale(${noScale})`;
-                } else {
-                    // reset and start over
-                    messageIndex = 0;
-                    yesScale = 1;
-                    noScale = 1;
-                    questionText.textContent = "will you be my valentine?";
-                    yesBtn.style.transform = "scale(1)";
-                    noBtn.style.transform = "scale(1)";
-                    reactionImg.classList.remove("visible");
-                    shuffledNoImages = shuffleArray(noImages);
-                    noImageIndex = 0;
-                }
-            });
-
-            yesBtn.addEventListener("click", () => {
-                questionSection.style.display = "none";
-                successSection.style.display = "block";
-                reactionImg.src = yesImage;
-                reactionImg.classList.add("visible");
-            });
-        </script>
-    </body>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+  <script>
+    setTimeout(() => document.getElementById("hint").classList.add("gone"), 4500);
+  </script>
+</body>
 </html>
