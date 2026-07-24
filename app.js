@@ -340,6 +340,7 @@
         <span class="rating" title="Indicative Google rating">★ ${s.pub.rating.toFixed(1)}</span>
       </div>
       <p class="desc">${s.pub.desc}</p>
+      <p class="drink">🍺 Reviewers' pick: <b>${s.pub.drink}</b></p>
       <div class="stn-row">
         <span class="stn-icon" aria-hidden="true"></span>
         <b>${s.name}</b>

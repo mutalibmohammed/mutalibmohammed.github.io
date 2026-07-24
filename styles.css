@@ -157,6 +157,11 @@ header .spacer { flex: 1; }
   font-size: 15px; white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 #card .desc { margin: 6px 0 10px; font-size: 13.5px; line-height: 1.5; color: var(--ink-soft); }
+#card .drink {
+  margin: 0 0 10px; font-size: 13px; color: var(--amber-deep);
+  background: #fdf6ea; border-radius: 10px; padding: 7px 10px;
+}
+#card .drink b { font-weight: 600; }
 .stn-row { display: flex; align-items: center; gap: 8px; font-size: 14px; }
 .stn-icon {
   width: 14px; height: 14px; border-radius: 50%; flex: none;
