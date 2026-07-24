@@ -43,7 +43,7 @@ Drawn from scratch in SVG following Beck's rules — horizontals, verticals, 45�
 - **The Thames** is drawn with its Vauxhall and Tower bends so Waterloo and London Bridge sit
   south of the river.
 - Only crawl stations are drawn — deliberately *not* a complete tube map, so it stays legible at
-  phone size. Faded stubs hint that lines continue beyond Zone 1.
+  phone size. Lines crop cleanly at their last Zone 1 crawl stop.
 
 ## Pick flow
 
